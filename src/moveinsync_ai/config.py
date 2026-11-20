@@ -11,6 +11,7 @@ class Settings:
     jwt_secret_key: str
     jwt_algorithm: str
     access_token_expire_minutes: int
+    schema_database_url: str | None = None
     otp_secret_key: str = "development-otp-secret-change-me"
     otp_expire_minutes: int = 10
     smtp_host: str | None = None
@@ -21,13 +22,15 @@ class Settings:
 
     @classmethod
     def from_environment(cls) -> "Settings":
+        database_url = os.getenv(
+            "DATABASE_URL", "postgresql+psycopg://moveinsync:moveinsync@localhost:5432/moveinsync"
+        )
         return cls(
-            database_url=os.getenv(
-                "DATABASE_URL", "postgresql+psycopg://moveinsync:moveinsync@localhost:5432/moveinsync"
-            ),
+            database_url=database_url,
             jwt_secret_key=os.getenv("JWT_SECRET_KEY", "development-only-change-me"),
             jwt_algorithm="HS256",
             access_token_expire_minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")),
+            schema_database_url=os.getenv("SCHEMA_DATABASE_URL", database_url),
             otp_secret_key=os.getenv("OTP_SECRET_KEY", "development-otp-secret-change-me"),
             otp_expire_minutes=int(os.getenv("OTP_EXPIRE_MINUTES", "10")),
             smtp_host=os.getenv("SMTP_HOST"),

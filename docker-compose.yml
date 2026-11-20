@@ -12,11 +12,14 @@ services:
       retries: 10
     ports:
       - "5432:5432"
+    volumes:
+      - ./docker/postgres/10-app-role.sql:/docker-entrypoint-initdb.d/10-app-role.sql:ro
 
   api:
     build: .
     environment:
-      DATABASE_URL: postgresql+psycopg://moveinsync:moveinsync@db:5432/moveinsync
+      DATABASE_URL: postgresql+psycopg://moveinsync_app:moveinsync_app@db:5432/moveinsync
+      SCHEMA_DATABASE_URL: postgresql+psycopg://moveinsync:moveinsync@db:5432/moveinsync
       JWT_SECRET_KEY: local-development-secret-change-before-deployment
       ACCESS_TOKEN_EXPIRE_MINUTES: "30"
     depends_on:

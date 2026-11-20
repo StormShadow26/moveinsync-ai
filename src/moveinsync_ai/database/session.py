@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import Settings
 from .models import Base
+from .rls import rls_policy_installer
 
 
 @lru_cache()
@@ -21,12 +22,13 @@ def get_engine(database_url: str):
 
 def create_schema(settings: Settings) -> None:
     """Create tables and apply the temporary passwordless-auth compatibility change."""
-    engine = get_engine(settings.database_url)
+    engine = get_engine(settings.schema_database_url or settings.database_url)
     Base.metadata.create_all(engine)
     password_column = next((column for column in inspect(engine).get_columns("users") if column["name"] == "password_hash"), None)
     if password_column and not password_column["nullable"] and engine.dialect.name == "postgresql":
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"))
+    rls_policy_installer.install(engine)
 
 
 def get_session(settings: Settings) -> Generator[Session, None, None]:

@@ -17,3 +17,21 @@ export const assurance = [
   ['Scoped by design', "Every request respects the caller's company access."],
   ['Built for operations', 'Designed around routes, trips, vendors, and shifts.'],
 ]
+
+export const processSteps = [
+  ['Understand the question', 'Relevant transport schema and business context are selected for the request.'],
+  ['Validate the query', 'Only safe, read-only SQL within the user scope is allowed to execute.'],
+  ['Explain the result', 'The response includes the data, the SQL, and what was computed.'],
+]
+
+export const testimonials = [
+  ['The best outcome is fewer handoffs between the transport desk and the people who need an answer.', 'Transport desk workflow'],
+  ['A manager should understand how a number was calculated before acting on it.', 'Operations oversight'],
+  ['The right access model lets teams move faster without making tenant boundaries fuzzy.', 'Security and data'],
+]
+
+export const footerGroups = [
+  ['Platform', 'How it works', 'Use cases', 'Pricing'],
+  ['Resources', 'Developer docs', 'Security', 'Status'],
+  ['Company', 'About', 'Contact', 'Careers'],
+]
