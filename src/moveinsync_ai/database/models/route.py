@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from sqlalchemy import Boolean, CheckConstraint, Integer, Numeric, String, UniqueConstraint, true
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, Numeric, String, UniqueConstraint, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TenantScoped
@@ -16,6 +16,7 @@ class Route(TenantScoped, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(String(32))
+    city_id: Mapped[int | None] = mapped_column(ForeignKey("cities.id"), nullable=True)
     origin: Mapped[str] = mapped_column(String(255))
     destination: Mapped[str] = mapped_column(String(255))
     distance_km: Mapped[Decimal] = mapped_column(Numeric(6, 2))

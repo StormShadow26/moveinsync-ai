@@ -4,13 +4,14 @@ export type ThreadScope = 'company' | 'all_companies'
 
 export interface Company { id: number; name: string }
 export interface ChatThread { id: number; company_id: number | null; scope: ThreadScope; title: string }
-export interface ChatMessage { id: number; thread_id: number; role: 'user' | 'assistant' | 'system'; content: string }
+export interface ChatMessage { id: number; thread_id: number; role: 'user' | 'assistant' | 'system'; content: string; generated_sql?: string | null; columns?: string[]; rows?: Record<string, unknown>[] }
+export interface AskResponse extends ChatMessage { generated_sql: string; result_summary: string; columns: string[]; rows: Record<string, unknown>[] }
 
 export interface ChatGateway {
   companies(): Promise<Company[]>
   threads(): Promise<ChatThread[]>
   createThread(scope: ThreadScope, companyId: number | null, title?: string): Promise<ChatThread>
   messages(threadId: number): Promise<ChatMessage[]>
-  ask(threadId: number, content: string): Promise<ChatMessage>
+  ask(threadId: number, content: string): Promise<AskResponse>
   currentUser(): UserScope | null
 }

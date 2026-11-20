@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ..config import Settings
-from ..database.models import LoginOtp, User, UserType
+from ..database.models import LoginOtp, User, UserCompany, UserType
 from .contracts import OtpDelivery, OtpGenerator, OtpHasher
 
 
@@ -70,3 +70,8 @@ class SqlAlchemyAuthenticationService:
 
     def get_user(self, user_id: int) -> Optional[User]:
         return self._session.get(User, user_id)
+
+    def company_ids(self, user: User) -> list[int]:
+        if user.company_id is not None:
+            return [user.company_id]
+        return list(self._session.scalars(select(UserCompany.company_id).where(UserCompany.user_id == user.id).order_by(UserCompany.company_id)))

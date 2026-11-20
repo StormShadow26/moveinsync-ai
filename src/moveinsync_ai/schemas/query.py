@@ -1,6 +1,7 @@
 """Conversation API request and response schemas."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,3 +36,8 @@ class MessageResponse(BaseModel):
     generated_sql: str | None
     result_summary: str | None
     created_at: datetime
+
+
+class AskResponse(MessageResponse):
+    columns: list[str]
+    rows: list[dict[str, Any]]

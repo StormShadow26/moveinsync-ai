@@ -12,4 +12,4 @@ class LangGraphQueryAgent:
         state = self._graph.invoke({"question": question, "scope": scope})
         if state.get("error"):
             raise QueryAgentError(state["error"])
-        return QueryAnswer(state["answer"], state["sql"], state["result_summary"])
+        return QueryAnswer(state["answer"], state["sql"], state["result_summary"], state["result"])

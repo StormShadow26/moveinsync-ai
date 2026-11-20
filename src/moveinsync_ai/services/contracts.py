@@ -12,6 +12,7 @@ class ThreadActor:
     user_type: UserType
     access_scope: str
     company_id: int | None
+    company_ids: list[int]
 
 
 class ThreadService(Protocol):

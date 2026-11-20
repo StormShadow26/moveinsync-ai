@@ -1,0 +1,22 @@
+{"id": "trip_count-chroma", "input": "How many trips can this manager see?", "expected": 2, "actual": 2.0, "pass": true, "notes": "chroma; schema context 325 characters"}
+{"id": "trip_count-full", "input": "How many trips can this manager see?", "expected": 2, "actual": 2.0, "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "client_count-chroma", "input": "How many trips does Acme have?", "expected": 1, "actual": 1.0, "pass": true, "notes": "chroma; schema context 325 characters"}
+{"id": "client_count-full", "input": "How many trips does Acme have?", "expected": 1, "actual": 0.0, "pass": false, "notes": "full; schema context 2609 characters"}
+{"id": "cross_company-chroma", "input": "Show company 3 trips", "expected": [], "actual": [], "pass": true, "notes": "chroma; schema context 401 characters"}
+{"id": "cross_company-full", "input": "Show company 3 trips", "expected": [], "actual": [], "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "manager_subset-chroma", "input": "Show company 3 trips across my companies", "expected": [], "actual": [], "pass": true, "notes": "chroma; schema context 401 characters"}
+{"id": "manager_subset-full", "input": "Show company 3 trips across my companies", "expected": [], "actual": [], "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "no_shows-chroma", "input": "How many no-shows?", "expected": 1, "actual": 1.0, "pass": true, "notes": "chroma; schema context 527 characters"}
+{"id": "no_shows-full", "input": "How many no-shows?", "expected": 1, "actual": 1.0, "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "vendor_cost-chroma", "input": "Total vendor cost?", "expected": 300, "actual": 300.0, "pass": true, "notes": "chroma; schema context 583 characters"}
+{"id": "vendor_cost-full", "input": "Total vendor cost?", "expected": 300, "actual": 300.0, "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "join-chroma", "input": "How many trips use Fleet 1?", "expected": 1, "actual": 0.0, "pass": false, "notes": "chroma; schema context 423 characters"}
+{"id": "join-full", "input": "How many trips use Fleet 1?", "expected": 1, "actual": 1.0, "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "dates-chroma", "input": "How many trips before 2026?", "expected": 0, "actual": 0.0, "pass": true, "notes": "chroma; schema context 401 characters"}
+{"id": "dates-full", "input": "How many trips before 2026?", "expected": 0, "actual": 0.0, "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "nulls-chroma", "input": "How many trips have no actual pickup?", "expected": 2, "actual": 2.0, "pass": true, "notes": "chroma; schema context 325 characters"}
+{"id": "nulls-full", "input": "How many trips have no actual pickup?", "expected": 2, "actual": 2.0, "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "dedup-chroma", "input": "How many different trips have invoice lines?", "expected": 2, "actual": 2.0, "pass": true, "notes": "chroma; schema context 539 characters"}
+{"id": "dedup-full", "input": "How many different trips have invoice lines?", "expected": 2, "actual": 2.0, "pass": true, "notes": "full; schema context 2609 characters"}
+{"id": "occupancy-chroma", "input": "What is the occupancy of trip 1?", "expected": 0.25, "actual": 0.25, "pass": true, "notes": "chroma; schema context 1037 characters"}
+{"id": "occupancy-full", "input": "What is the occupancy of trip 1?", "expected": 0.25, "actual": 0.25, "pass": true, "notes": "full; schema context 2609 characters"}

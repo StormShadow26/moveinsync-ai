@@ -5,10 +5,16 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from moveinsync_ai.api.routers.auth import get_otp_delivery
+from moveinsync_ai.api.routers.threads import query_agent
 from moveinsync_ai.app import create_app
 from moveinsync_ai.config import Settings
-from moveinsync_ai.database.models import Company, User, UserType
+from moveinsync_ai.database.models import Company, User, UserCompany, UserType
 from moveinsync_ai.database.session import get_session
+from moveinsync_ai.query_agent.contracts import QueryResult
+from moveinsync_ai.query_agent.groq import GroqSqlGenerator
+from moveinsync_ai.query_agent.schema_retrieval import CuratedSchemaRetriever
+from moveinsync_ai.query_agent.service import LangGraphQueryAgent
+from moveinsync_ai.query_agent.sql_validator import ReadOnlySqlValidator
 
 
 class RecordingOtpDelivery:
@@ -47,6 +53,9 @@ def create_test_users(settings: Settings) -> None:
                 User(email="ops@moveinsync.ai", user_type=UserType.INTERNAL_OPS_MANAGER),
             ]
         )
+        session.flush()
+        manager = session.query(User).filter_by(email="ops@moveinsync.ai").one()
+        session.add(UserCompany(user_id=manager.id, company_id=acme.id))
         session.commit()
 
 
@@ -147,3 +156,35 @@ def test_internal_manager_can_use_otp_and_choose_all_companies() -> None:
         assert response.status_code == 201
         assert response.json()["company_id"] is None
         assert client.get("/query/companies", headers=headers).status_code == 200
+
+
+def test_ask_returns_rows_and_keeps_message_history() -> None:
+    class Model:
+        def complete(self, prompt, *, json_output=False):
+            if json_output:
+                assert "trips(id," in prompt and "employees(id," not in prompt
+                return '{"sql": "SELECT id FROM trips", "reasoning_summary": "List trips"}'
+            return "One trip."
+
+    class Executor:
+        def execute(self, sql, scope):
+            assert scope.company_id == 1 and scope.access_scope == "single_company"
+            assert sql == "SELECT id FROM public.trips"
+            return QueryResult(["id"], [{"id": 7}])
+
+    client, settings, delivery = make_client()
+    client.app.dependency_overrides[query_agent] = lambda: LangGraphQueryAgent(
+        CuratedSchemaRetriever(), GroqSqlGenerator(Model()), ReadOnlySqlValidator(), Executor()
+    )
+    with client:
+        create_test_users(settings)
+        client.post("/auth/otp/request", json={"email": "admin@acme.in"})
+        token = client.post("/auth/otp/verify", json={"email": "admin@acme.in", "code": delivery.codes["admin@acme.in"]}).json()["access_token"]
+        headers = {"Authorization": "Bearer " + token}
+        thread_id = client.post("/query/threads", json={"scope": "company", "company_id": 1}, headers=headers).json()["id"]
+        response = client.post(f"/query/threads/{thread_id}/ask", json={"content": "Show trips"}, headers=headers)
+        assert response.status_code == 201
+        assert response.json()["columns"] == ["id"] and response.json()["rows"] == [{"id": 7}]
+        assert response.json()["generated_sql"] == "SELECT id FROM public.trips"
+        messages = client.get(f"/query/threads/{thread_id}/messages", headers=headers).json()
+        assert [message["role"] for message in messages] == ["user", "assistant"]

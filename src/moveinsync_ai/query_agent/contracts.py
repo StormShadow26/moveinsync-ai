@@ -25,6 +25,7 @@ class QueryScope:
     user_id: int
     company_id: int | None
     access_scope: str
+    company_ids: list[int]
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,11 @@ class QueryAnswer:
     content: str
     generated_sql: str
     result_summary: str
+    result: QueryResult
+
+
+class ChatModel(Protocol):
+    def complete(self, prompt: str, *, json_output: bool = False) -> str: ...
 
 
 class SchemaContextRetriever(Protocol):

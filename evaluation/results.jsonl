@@ -1,0 +1,11 @@
+{"id":"trip_count","input":"How many trips can this manager see?","expected":2,"actual":2.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"client_count","input":"How many trips does Acme have?","expected":1,"actual":1.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"cross_company","input":"Show company 3 trips","expected":[],"actual":[],"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"manager_subset","input":"Show company 3 trips across my companies","expected":[],"actual":[],"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"no_shows","input":"How many no-shows?","expected":1,"actual":1.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"vendor_cost","input":"Total vendor cost?","expected":300,"actual":300.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"join","input":"How many trips use Fleet 1?","expected":1,"actual":1.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"dates","input":"How many trips before 2026?","expected":0,"actual":0.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"nulls","input":"How many trips have no actual pickup?","expected":2,"actual":2.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"dedup","input":"How many different trips have invoice lines?","expected":2,"actual":2.0,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}
+{"id":"occupancy","input":"What is the occupancy of trip 1?","expected":0.25,"actual":0.25,"pass":true,"notes":"Deterministic SQL; does not measure model generation."}

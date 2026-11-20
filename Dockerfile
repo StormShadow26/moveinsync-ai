@@ -15,7 +15,9 @@ RUN apt-get update \
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY --from=frontend-build /frontend/dist ./src/moveinsync_ai/frontend/dist
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir '.[dev]'
+COPY evaluation ./evaluation
+COPY tests ./tests
 
 EXPOSE 8000
 CMD ["uvicorn", "moveinsync_ai:app", "--host", "0.0.0.0", "--port", "8000"]

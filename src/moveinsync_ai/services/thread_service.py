@@ -56,7 +56,7 @@ class ScopedThreadService:
 
     def _apply_scope(self, actor: ThreadActor, company_id: int | None, scope: QueryThreadScope) -> None:
         access_scope = "all_companies" if scope == QueryThreadScope.ALL_COMPANIES else "single_company"
-        self._scope_setter.apply(self._session, actor.user_id, company_id, access_scope)
+        self._scope_setter.apply(self._session, actor.user_id, company_id, access_scope, actor.company_ids)
 
     @staticmethod
     def _resolve_scope(actor: ThreadActor, scope: QueryThreadScope, company_id: int | None) -> int | None:
@@ -68,4 +68,6 @@ class ScopedThreadService:
             return None
         if company_id is None:
             raise ValueError("A company-scoped thread requires a company ID")
+        if company_id not in actor.company_ids:
+            raise PermissionError("Company is outside your assigned scope")
         return company_id

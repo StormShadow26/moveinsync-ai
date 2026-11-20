@@ -5,7 +5,12 @@ from sqlglot import exp, parse
 from .contracts import SqlValidationError, SqlValidator
 
 
-ALLOWED_TABLES = {"companies", "vendors", "vehicles", "routes", "employees", "trips", "trip_bookings"}
+ALLOWED_TABLES = {"companies", "vendors", "vehicles", "routes", "employees", "trips", "trip_bookings", "cities", "drivers", "shifts", "rosters", "roster_entries", "invoices", "invoice_lines", "trip_events"}
+ALLOWED_FUNCTIONS = {
+    "ABS", "AND", "AVG", "CASE", "CAST", "CEIL", "CEILING", "COALESCE", "COUNT", "DATE", "DATE_TRUNC", "IF", "NOT", "OR",
+    "EXTRACT", "FLOOR", "GREATEST", "LEAST", "LOWER", "MAX", "MIN", "NULLIF", "ROUND",
+    "SUM", "TRIM", "UPPER",
+}
 FORBIDDEN_NODES = (
     exp.Alter,
     exp.Command,
@@ -35,8 +40,22 @@ class ReadOnlySqlValidator:
         tables = {table.name for table in statement.find_all(exp.Table)}
         if not tables or not tables <= ALLOWED_TABLES:
             raise SqlValidationError("Generated SQL references a table outside the transport schema")
-        if statement.args.get("locks"):
+        if any(table.catalog or (table.db and table.db != "public") for table in statement.find_all(exp.Table)):
+            raise SqlValidationError("Only public transport tables are allowed")
+        if any(data_type.this == exp.DataType.Type.USERDEFINED for data_type in statement.find_all(exp.DataType)):
+            raise SqlValidationError("Custom data types are not allowed")
+        if any(statement.find_all(exp.Operator)):
+            raise SqlValidationError("Custom operators are not allowed")
+        if any(join.args.get("kind", "").upper() == "CROSS" or not join.args.get("on") and not join.args.get("using") for join in statement.find_all(exp.Join)):
+            raise SqlValidationError("Cross joins are not allowed")
+        for function in statement.find_all(exp.Func):
+            name = function.name.upper() if isinstance(function, exp.Anonymous) else function.sql_name().upper()
+            if name not in ALLOWED_FUNCTIONS or isinstance(function.parent, exp.Dot):
+                raise SqlValidationError("Generated SQL contains an unapproved function")
+        if any(select.args.get("locks") for select in statement.find_all(exp.Select)):
             raise SqlValidationError("Row locking is not allowed")
-        if statement.args.get("into"):
+        if any(select.args.get("into") for select in statement.find_all(exp.Select)):
             raise SqlValidationError("SELECT INTO is not allowed")
+        for table in statement.find_all(exp.Table):
+            table.set("db", exp.to_identifier("public"))
         return statement.sql(dialect="postgres")

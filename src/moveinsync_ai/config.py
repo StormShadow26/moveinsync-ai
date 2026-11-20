@@ -27,7 +27,7 @@ class Settings:
     @classmethod
     def from_environment(cls) -> "Settings":
         database_url = os.getenv(
-            "DATABASE_URL", "postgresql+psycopg://moveinsync:moveinsync@localhost:5432/moveinsync"
+            "DATABASE_URL", "postgresql+psycopg://moveinsync_app:moveinsync_app@localhost:5432/moveinsync"
         )
         return cls(
             database_url=database_url,

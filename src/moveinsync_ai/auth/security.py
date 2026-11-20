@@ -74,12 +74,13 @@ class JwtAccessTokenCodec:
     def __init__(self, settings: Settings):
         self._settings = settings
 
-    def issue(self, user_id: int, user_type: str, company_id: Optional[int]) -> str:
+    def issue(self, user_id: int, user_type: str, company_id: Optional[int], company_ids: list[int]) -> str:
         payload: Dict[str, Any] = {
             "sub": str(user_id),
             "user_type": user_type,
             "access_scope": "all_companies" if company_id is None else "single_company",
             "company_id": company_id,
+            "company_ids": company_ids,
             "exp": datetime.now(timezone.utc) + timedelta(minutes=self._settings.access_token_expire_minutes),
         }
         return jwt.encode(payload, self._settings.jwt_secret_key, algorithm=self._settings.jwt_algorithm)

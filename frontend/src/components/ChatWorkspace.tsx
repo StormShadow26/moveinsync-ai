@@ -7,7 +7,7 @@ interface ChatWorkspaceProps { gateway: ChatGateway; user: UserScope; onSignOut:
 
 function friendlyQueryNotice(reason: unknown) {
   const message = reason instanceof Error ? reason.message : ''
-  return message.startsWith('I can help')
+  return /^(I can help|What should|The query|The data query|Please enter)/.test(message)
     ? message
     : "I couldn't answer that just now. Please try a transport-data question again."
 }
@@ -47,13 +47,16 @@ export function ChatWorkspace({ gateway, user, onSignOut }: ChatWorkspaceProps) 
     if (!selected || !draft.trim()) return
     const question = draft.trim()
     setDraft('')
-    try { await gateway.ask(selected.id, question); setNotice('') }
+    try {
+      const answer = await gateway.ask(selected.id, question)
+      const history = await gateway.messages(selected.id)
+      setMessages(history.map(message => message.id === answer.id ? answer : message)); setNotice('')
+    }
     catch (reason) { setNotice(friendlyQueryNotice(reason)) }
-    finally { gateway.messages(selected.id).then(setMessages).catch(() => setNotice("I couldn't load this conversation. Please try again.")) }
   }
 
   const scopeName = selected?.scope === 'all_companies'
-    ? 'All companies'
+    ? 'All assigned companies'
     : companies.find(company => company.id === selected?.company_id)?.name ?? `Company ${selected?.company_id ?? companyId}`
 
   return <div className="min-h-screen bg-slate-50 text-brand-ink">
@@ -65,15 +68,15 @@ export function ChatWorkspace({ gateway, user, onSignOut }: ChatWorkspaceProps) 
       <aside className="border-r bg-white p-4">
         <button onClick={() => void newChat()} className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 py-3 text-sm font-bold text-white"><MessageSquarePlus size={17}/>New chat</button>
         <div className="mt-4 grid gap-2">
-          {user.user_type === 'internal_ops_manager' && <><label className="text-xs font-bold text-slate-500">Data scope</label><select value={scope} onChange={event => setScope(event.target.value as ThreadScope)} className="rounded-lg border p-2 text-sm"><option value="all_companies">All companies</option><option value="company">One company</option></select>{scope === 'company' && <select value={companyId ?? ''} onChange={event => setCompanyId(Number(event.target.value))} className="rounded-lg border p-2 text-sm"><option value="">Select a company</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select>}</>}
+          {user.user_type === 'internal_ops_manager' && <><label className="text-xs font-bold text-slate-500">Data scope</label><select value={scope} onChange={event => setScope(event.target.value as ThreadScope)} className="rounded-lg border p-2 text-sm"><option value="all_companies">All assigned companies</option><option value="company">One company</option></select>{scope === 'company' && <select value={companyId ?? ''} onChange={event => setCompanyId(Number(event.target.value))} className="rounded-lg border p-2 text-sm"><option value="">Select a company</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select>}</>}
           {user.user_type === 'client_transport_admin' && <p className="rounded-lg bg-blue-50 p-3 text-xs text-brand-blue">Scope: your company only</p>}
         </div>
-        <div className="mt-6 grid gap-1">{threads.map(thread => <button key={thread.id} onClick={() => { setSelected(thread); setNotice('') }} className={`rounded-lg px-3 py-3 text-left text-sm ${selected?.id === thread.id ? 'bg-blue-50 text-brand-blue' : 'hover:bg-slate-50'}`}><b className="block truncate">{thread.title}</b><span className="text-xs text-slate-500">{thread.scope === 'all_companies' ? 'All companies' : `Company ${thread.company_id}`}</span></button>)}</div>
+        <div className="mt-6 grid gap-1">{threads.map(thread => <button key={thread.id} onClick={() => { setSelected(thread); setNotice('') }} className={`rounded-lg px-3 py-3 text-left text-sm ${selected?.id === thread.id ? 'bg-blue-50 text-brand-blue' : 'hover:bg-slate-50'}`}><b className="block truncate">{thread.title}</b><span className="text-xs text-slate-500">{thread.scope === 'all_companies' ? 'All assigned companies' : `Company ${thread.company_id}`}</span></button>)}</div>
       </aside>
       <main className="flex min-h-0 flex-col">
         <div className="border-b bg-white px-6 py-4"><p className="text-xs font-bold uppercase tracking-widest text-brand-blue">{selected ? scopeName : 'New conversation'}</p><h1 className="text-xl font-bold">{selected?.title ?? 'Start a transport data conversation'}</h1></div>
         <div className="flex-1 space-y-4 overflow-y-auto p-6">
-          {messages.length ? messages.map(message => <div key={message.id} className={`max-w-2xl rounded-2xl p-4 ${message.role === 'user' ? 'ml-auto bg-brand-blue text-white' : 'bg-white shadow-material'}`}>{message.content}</div>) : <div className="mx-auto max-w-lg pt-20 text-center text-slate-500"><h2 className="text-2xl font-bold text-brand-ink">Ask about transport operations</h2><p className="mt-3">Create a chat, then ask about no-shows, occupancy, routes, or costs.</p></div>}
+          {messages.length ? messages.map(message => <div key={message.id} className={`max-w-2xl rounded-2xl p-4 ${message.role === 'user' ? 'ml-auto bg-brand-blue text-white' : 'bg-white shadow-material'}`}><p>{message.content}</p>{message.generated_sql && <details className="mt-3 text-sm"><summary>View SQL</summary><pre className="mt-2 overflow-auto whitespace-pre-wrap">{message.generated_sql}</pre></details>}{message.columns && <div className="mt-3 overflow-auto"><table className="text-left text-sm"><thead><tr>{message.columns.map(column => <th className="border p-2" key={column}>{column}</th>)}</tr></thead><tbody>{message.rows?.map((row, index) => <tr key={index}>{message.columns?.map(column => <td className="border p-2" key={column}>{String(row[column] ?? '—')}</td>)}</tr>)}</tbody></table></div>}</div>) : <div className="mx-auto max-w-lg pt-20 text-center text-slate-500"><h2 className="text-2xl font-bold text-brand-ink">Ask about transport operations</h2><p className="mt-3">Create a chat, then ask about no-shows, occupancy, routes, or costs.</p></div>}
           {notice && <div className="max-w-2xl rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-slate-600"><p className="font-bold text-brand-blue">How can I help?</p><p className="mt-1">{notice}</p></div>}
         </div>
         <form onSubmit={send} className="border-t bg-white p-4"><div className="mx-auto flex max-w-3xl gap-2"><input value={draft} onChange={event => setDraft(event.target.value)} disabled={!selected} placeholder={selected ? 'Ask about no-shows, occupancy, routes, or costs…' : 'Create a new chat first'} className="min-w-0 flex-1 rounded-xl border px-4 py-3 outline-none focus:border-brand-blue"/><button disabled={!selected} className="rounded-xl bg-brand-blue px-4 text-white disabled:bg-slate-300"><Send size={18}/></button></div></form>

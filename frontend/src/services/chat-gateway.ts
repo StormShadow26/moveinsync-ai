@@ -1,4 +1,4 @@
-import type { ChatGateway, ChatMessage, ChatThread, Company, ThreadScope } from '../contracts/chat'
+import type { AskResponse, ChatGateway, ChatMessage, ChatThread, Company, ThreadScope } from '../contracts/chat'
 import type { UserScope } from '../contracts/auth'
 import { readResponse } from './http'
 
@@ -14,7 +14,7 @@ export class HttpChatGateway implements ChatGateway {
     return this.request('/query/threads', { method: 'POST', body: JSON.stringify({ scope, company_id: companyId, title }) })
   }
   messages(threadId: number): Promise<ChatMessage[]> { return this.request(`/query/threads/${threadId}/messages`) }
-  ask(threadId: number, content: string): Promise<ChatMessage> {
+  ask(threadId: number, content: string): Promise<AskResponse> {
     return this.request(`/query/threads/${threadId}/ask`, { method: 'POST', body: JSON.stringify({ content }) })
   }
 

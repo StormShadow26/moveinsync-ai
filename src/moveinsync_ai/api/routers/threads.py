@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from ...database.models import UserType
 from ...database.repositories.query_threads import SqlAlchemyQueryThreadRepository
 from ...database.rls import tenant_scope_setter
-from ...schemas.query import AddMessageRequest, CreateThreadRequest, MessageResponse, ThreadResponse
+from ...schemas.query import AddMessageRequest, AskResponse, CreateThreadRequest, MessageResponse, ThreadResponse
 from ...services.contracts import ThreadActor, ThreadService
 from ...services.thread_service import ScopedThreadService
 from ...query_agent.contracts import QueryAgent, QueryAgentError, QueryConfigurationError, QueryProviderError, QueryScope
-from ...query_agent.groq import GroqSqlGenerator
-from ...query_agent.schema_retrieval import CuratedSchemaRetriever
+from ...query_agent.groq import GroqChatModel, GroqSqlGenerator
+from ...query_agent.schema_retrieval import ChromaSchemaRetriever
 from ...query_agent.service import LangGraphQueryAgent
 from ...query_agent.sql_executor import RlsSqlExecutor
 from ...query_agent.sql_validator import ReadOnlySqlValidator
@@ -32,8 +32,8 @@ ClaimsDependency = Annotated[dict, Depends(token_claims)]
 
 def query_agent(session: SessionDependency, settings: SettingsDependency) -> QueryAgent:
     return LangGraphQueryAgent(
-        CuratedSchemaRetriever(),
-        GroqSqlGenerator(settings.groq_api_key, settings.groq_model),
+        ChromaSchemaRetriever(),
+        GroqSqlGenerator(GroqChatModel(settings.groq_api_key, settings.groq_model)),
         ReadOnlySqlValidator(),
         RlsSqlExecutor(session, tenant_scope_setter, settings.query_row_limit, settings.query_timeout_seconds),
     )
@@ -43,7 +43,7 @@ QueryAgentDependency = Annotated[QueryAgent, Depends(query_agent)]
 
 
 def actor_from_claims(claims: dict) -> ThreadActor:
-    return ThreadActor(int(claims["sub"]), UserType(claims["user_type"]), claims["access_scope"], claims["company_id"])
+    return ThreadActor(int(claims["sub"]), UserType(claims["user_type"]), claims["access_scope"], claims["company_id"], claims["company_ids"])
 
 
 @router.get("", response_model=list[ThreadResponse])
@@ -77,10 +77,10 @@ def add_message(thread_id: int, request: AddMessageRequest, claims: ClaimsDepend
     return message
 
 
-@router.post("/{thread_id}/ask", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{thread_id}/ask", response_model=AskResponse, status_code=status.HTTP_201_CREATED)
 def ask_question(
     thread_id: int, request: AddMessageRequest, claims: ClaimsDependency, service: ThreadServiceDependency, agent: QueryAgentDependency
-) -> MessageResponse:
+) -> AskResponse:
     actor = actor_from_claims(claims)
     thread = service.get_thread(actor, thread_id)
     if thread is None:
@@ -90,6 +90,7 @@ def ask_question(
         user_id=actor.user_id,
         company_id=thread.company_id,
         access_scope="all_companies" if thread.scope.value == "all_companies" else "single_company",
+        company_ids=actor.company_ids,
     )
     try:
         answer = agent.ask(request.content, scope)
@@ -102,4 +103,4 @@ def ask_question(
     message = service.add_assistant_message(actor, thread_id, answer.content, answer.generated_sql, answer.result_summary)
     if message is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
-    return message
+    return AskResponse(**MessageResponse.model_validate(message).model_dump(), columns=answer.result.columns, rows=answer.result.rows)

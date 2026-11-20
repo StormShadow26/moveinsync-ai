@@ -48,13 +48,18 @@ def token_claims(token: Annotated[str, Depends(oauth2_scheme)], codec: AccessTok
     user_type = claims.get("user_type")
     company_id = claims.get("company_id")
     access_scope = claims.get("access_scope")
+    company_ids = claims.get("company_ids")
     if not isinstance(claims.get("sub"), str) or user_type not in {
         UserType.INTERNAL_OPS_MANAGER.value,
         UserType.CLIENT_TRANSPORT_ADMIN.value,
     }:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token claims")
+    if not isinstance(company_ids, list) or not company_ids or any(type(value) is not int or value <= 0 for value in company_ids):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token company list")
     if user_type == UserType.INTERNAL_OPS_MANAGER.value and (access_scope != "all_companies" or company_id is not None):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token scope")
+    if user_type == UserType.CLIENT_TRANSPORT_ADMIN.value and company_ids != [company_id]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token company list")
     if user_type == UserType.CLIENT_TRANSPORT_ADMIN.value and (
         access_scope != "single_company" or not isinstance(company_id, int)
     ):
@@ -92,11 +97,15 @@ def verify_otp(
     is_internal_manager = user.user_type == UserType.INTERNAL_OPS_MANAGER
     if (is_internal_manager and user.company_id is not None) or (not is_internal_manager and user.company_id is None):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has an invalid company scope")
+    company_ids = authentication.company_ids(user)
+    if not company_ids:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has no assigned companies")
     return TokenResponse(
         access_token=codec.issue(
             user.id,
             user.user_type.value,
             user.company_id,
+            company_ids,
         )
     )
 

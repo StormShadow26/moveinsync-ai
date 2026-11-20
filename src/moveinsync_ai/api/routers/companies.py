@@ -32,5 +32,5 @@ ClaimsDependency = Annotated[dict, Depends(token_claims)]
 @router.get("", response_model=list[CompanyResponse])
 def list_companies(claims: ClaimsDependency, directory: DirectoryDependency, session: SessionDependency) -> list[CompanyResponse]:
     actor: ThreadActor = actor_from_claims(claims)
-    tenant_scope_setter.apply(session, actor.user_id, actor.company_id, actor.access_scope)
+    tenant_scope_setter.apply(session, actor.user_id, actor.company_id, actor.access_scope, actor.company_ids)
     return directory.list_companies()
