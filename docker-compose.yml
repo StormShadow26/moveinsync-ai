@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: moveinsync
+      POSTGRES_USER: moveinsync
+      POSTGRES_PASSWORD: moveinsync
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moveinsync -d moveinsync"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://moveinsync:moveinsync@db:5432/moveinsync
+      JWT_SECRET_KEY: local-development-secret-change-before-deployment
+      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
