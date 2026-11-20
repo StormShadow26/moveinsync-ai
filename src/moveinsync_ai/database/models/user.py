@@ -24,7 +24,6 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
     user_type: Mapped[UserType] = mapped_column(
         Enum(UserType, name="user_type", values_callable=lambda enum_class: [member.value for member in enum_class])
     )

@@ -11,6 +11,13 @@ class Settings:
     jwt_secret_key: str
     jwt_algorithm: str
     access_token_expire_minutes: int
+    otp_secret_key: str = "development-otp-secret-change-me"
+    otp_expire_minutes: int = 10
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_sender_email: str = "noreply@moveinsync.ai"
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -21,6 +28,13 @@ class Settings:
             jwt_secret_key=os.getenv("JWT_SECRET_KEY", "development-only-change-me"),
             jwt_algorithm="HS256",
             access_token_expire_minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")),
+            otp_secret_key=os.getenv("OTP_SECRET_KEY", "development-otp-secret-change-me"),
+            otp_expire_minutes=int(os.getenv("OTP_EXPIRE_MINUTES", "10")),
+            smtp_host=os.getenv("SMTP_HOST"),
+            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_username=os.getenv("SMTP_USERNAME"),
+            smtp_password=os.getenv("SMTP_PASSWORD"),
+            smtp_sender_email=os.getenv("SMTP_SENDER_EMAIL", "noreply@moveinsync.ai"),
         )
 
 

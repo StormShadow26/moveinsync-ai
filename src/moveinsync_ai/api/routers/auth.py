@@ -3,21 +3,32 @@
 from typing import Annotated, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 
-from ...auth.contracts import AccessTokenCodec, AuthenticationService
-from ...auth.security import JwtAccessTokenCodec, password_hasher
+from ...auth.contracts import AccessTokenCodec, AuthenticationService, OtpDelivery
+from ...auth.security import HmacOtpHasher, JwtAccessTokenCodec, otp_delivery, otp_generator
 from ...auth.service import SqlAlchemyAuthenticationService
 from ...database.models import UserType
-from ...schemas.auth import CurrentUser, TokenResponse
+from ...schemas.auth import CurrentUser, OtpRequest, OtpRequestResponse, OtpVerification, TokenResponse
 from ..dependencies import SessionDependency, SettingsDependency
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/otp/verify")
 
 
-def authentication_service(session: SessionDependency) -> AuthenticationService:
-    return SqlAlchemyAuthenticationService(session, password_hasher)
+def get_otp_delivery(settings: SettingsDependency) -> OtpDelivery:
+    return otp_delivery(settings)
+
+
+OtpDeliveryDependency = Annotated[OtpDelivery, Depends(get_otp_delivery)]
+
+
+def authentication_service(
+    session: SessionDependency, settings: SettingsDependency, delivery: OtpDeliveryDependency
+) -> AuthenticationService:
+    return SqlAlchemyAuthenticationService(
+        session, settings, otp_generator, HmacOtpHasher(settings.otp_secret_key), delivery
+    )
 
 
 def access_token_codec(settings: SettingsDependency) -> AccessTokenCodec:
@@ -51,24 +62,34 @@ def token_claims(token: Annotated[str, Depends(oauth2_scheme)], codec: AccessTok
     return claims
 
 
-@router.post("/login", response_model=TokenResponse)
-def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+@router.post("/otp/request", response_model=OtpRequestResponse, status_code=status.HTTP_202_ACCEPTED)
+def request_otp(
+    request: OtpRequest,
+    authentication: AuthenticationServiceDependency,
+) -> OtpRequestResponse:
+    """Send a verification code only to a provisioned client travel admin."""
+    try:
+        authentication.request_otp(request.email)
+    except OSError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Verification email is unavailable") from error
+    return OtpRequestResponse()
+
+
+@router.post("/otp/verify", response_model=TokenResponse)
+def verify_otp(
+    verification: OtpVerification,
     authentication: AuthenticationServiceDependency,
     codec: AccessTokenCodecDependency,
 ) -> TokenResponse:
-    """Exchange an email and password for a short-lived scoped JWT."""
-    user = authentication.authenticate(form_data.username, form_data.password)
+    """Exchange a valid, single-use verification code for a scoped JWT."""
+    user = authentication.verify_otp(verification.email, verification.code)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Invalid or expired verification code",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    is_internal_manager = user.user_type == UserType.INTERNAL_OPS_MANAGER
-    if (is_internal_manager and user.company_id is not None) or (
-        not is_internal_manager and user.company_id is None
-    ):
+    if user.company_id is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has an invalid company scope")
     return TokenResponse(
         access_token=codec.issue(

@@ -1,47 +1,71 @@
 """Password hashing and JWT helpers."""
 
-import base64
 from datetime import datetime, timedelta, timezone
-import hashlib
 import hmac
+import hashlib
+import logging
 import secrets
+import smtplib
+from email.message import EmailMessage
 from typing import Any, Dict, Optional
 
 import jwt
 
 from ..config import Settings
-from .contracts import AccessTokenCodec, PasswordHasher
+from .contracts import AccessTokenCodec, OtpDelivery, OtpGenerator, OtpHasher
 
-SCRYPT_COST = 2**14
-SCRYPT_BLOCK_SIZE = 8
-SCRYPT_PARALLELISM = 1
-SCRYPT_KEY_LENGTH = 32
+logger = logging.getLogger(__name__)
 
 
-class ScryptPasswordHasher:
-    """PasswordHasher implementation using Python's scrypt primitive."""
+class SecureOtpGenerator:
+    """Generate an email-friendly six-digit verification code."""
 
-    def hash(self, password: str) -> str:
-        salt = secrets.token_bytes(16)
-        derived_key = hashlib.scrypt(
-            password.encode("utf-8"), salt=salt, n=SCRYPT_COST, r=SCRYPT_BLOCK_SIZE, p=SCRYPT_PARALLELISM, dklen=SCRYPT_KEY_LENGTH
-        )
-        return "scrypt${}${}${}${}${}".format(
-            SCRYPT_COST, SCRYPT_BLOCK_SIZE, SCRYPT_PARALLELISM, base64.b64encode(salt).decode("ascii"), base64.b64encode(derived_key).decode("ascii")
-        )
+    def generate(self) -> str:
+        return f"{secrets.randbelow(1_000_000):06d}"
 
-    def verify(self, password: str, password_hash: str) -> bool:
-        try:
-            algorithm, cost, block_size, parallelism, encoded_salt, encoded_key = password_hash.split("$")
-            if algorithm != "scrypt":
-                return False
-            expected_key = base64.b64decode(encoded_key)
-            derived_key = hashlib.scrypt(
-                password.encode("utf-8"), salt=base64.b64decode(encoded_salt), n=int(cost), r=int(block_size), p=int(parallelism), dklen=len(expected_key)
-            )
-        except (ValueError, TypeError):
-            return False
-        return hmac.compare_digest(derived_key, expected_key)
+
+class HmacOtpHasher:
+    """Protect OTP values at rest with a server-held secret."""
+
+    def __init__(self, secret: str):
+        self._secret = secret.encode("utf-8")
+
+    def hash(self, code: str) -> str:
+        return hmac.new(self._secret, code.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    def verify(self, code: str, code_hash: str) -> bool:
+        return hmac.compare_digest(self.hash(code), code_hash)
+
+
+class SmtpOtpDelivery:
+    """Deliver OTPs through the configured SMTP server."""
+
+    def __init__(self, settings: Settings):
+        self._settings = settings
+
+    def send(self, recipient: str, code: str) -> None:
+        message = EmailMessage()
+        message["Subject"] = "Your MoveInSync verification code"
+        message["From"] = self._settings.smtp_sender_email
+        message["To"] = recipient
+        message.set_content(f"Your MoveInSync verification code is {code}. It expires in {self._settings.otp_expire_minutes} minutes.")
+        with smtplib.SMTP(self._settings.smtp_host, self._settings.smtp_port, timeout=10) as client:
+            client.starttls()
+            if self._settings.smtp_username and self._settings.smtp_password:
+                client.login(self._settings.smtp_username, self._settings.smtp_password)
+            client.send_message(message)
+
+
+class LoggingOtpDelivery:
+    """Development-only delivery that makes local OTP testing possible."""
+
+    def send(self, recipient: str, code: str) -> None:
+        logger.warning("Development OTP for %s: %s", recipient, code)
+
+
+def otp_delivery(settings: Settings) -> OtpDelivery:
+    """Select SMTP in configured environments, otherwise local log delivery."""
+    return SmtpOtpDelivery(settings) if settings.smtp_host else LoggingOtpDelivery()
 
 
 class JwtAccessTokenCodec:
@@ -67,4 +91,4 @@ class JwtAccessTokenCodec:
             return None
 
 
-password_hasher: PasswordHasher = ScryptPasswordHasher()
+otp_generator: OtpGenerator = SecureOtpGenerator()

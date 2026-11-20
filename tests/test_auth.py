@@ -1,56 +1,63 @@
 """Authentication API contract tests."""
 
-from fastapi.testclient import TestClient
 from uuid import uuid4
 
+from fastapi.testclient import TestClient
+
+from moveinsync_ai.api.routers.auth import get_otp_delivery
 from moveinsync_ai.app import create_app
-from moveinsync_ai.auth.security import password_hasher
 from moveinsync_ai.config import Settings
 from moveinsync_ai.database.models import Company, User, UserType
 from moveinsync_ai.database.session import get_session
 
 
-def make_client() -> tuple[TestClient, Settings]:
+class RecordingOtpDelivery:
+    """Test implementation of the OTP delivery contract."""
+
+    def __init__(self):
+        self.codes: dict[str, str] = {}
+
+    def send(self, recipient: str, code: str) -> None:
+        self.codes[recipient] = code
+
+
+def make_client() -> tuple[TestClient, Settings, RecordingOtpDelivery]:
     settings = Settings(
         database_url="sqlite+pysqlite:///file:auth_{}?mode=memory&cache=shared&uri=true".format(uuid4().hex),
-        jwt_secret_key="test-secret",
+        jwt_secret_key="test-secret-key-with-at-least-thirty-two-characters",
         jwt_algorithm="HS256",
         access_token_expire_minutes=30,
+        otp_secret_key="test-otp-secret",
     )
-    return TestClient(create_app(settings)), settings
+    application = create_app(settings)
+    delivery = RecordingOtpDelivery()
+    application.dependency_overrides[get_otp_delivery] = lambda: delivery
+    return TestClient(application), settings, delivery
 
 
 def create_test_users(settings: Settings) -> None:
-    """Create explicit test fixtures; production startup creates no users."""
+    """Provision users explicitly; startup never creates identities."""
     with next(get_session(settings)) as session:
         acme = Company(slug="acme", name="Acme India")
         session.add(acme)
         session.flush()
         session.add_all(
             [
-                User(
-                    email="admin@acme.in",
-                    password_hash=password_hasher.hash("demo-password"),
-                    user_type=UserType.CLIENT_TRANSPORT_ADMIN,
-                    company_id=acme.id,
-                ),
-                User(
-                    email="ops@moveinsync.ai",
-                    password_hash=password_hasher.hash("demo-password"),
-                    user_type=UserType.INTERNAL_OPS_MANAGER,
-                ),
+                User(email="admin@acme.in", user_type=UserType.CLIENT_TRANSPORT_ADMIN, company_id=acme.id),
+                User(email="ops@moveinsync.ai", user_type=UserType.INTERNAL_OPS_MANAGER),
             ]
         )
         session.commit()
 
 
-def test_transport_admin_receives_single_company_scope() -> None:
-    client, settings = make_client()
+def test_provisioned_transport_admin_receives_single_company_scope() -> None:
+    client, settings, delivery = make_client()
     with client:
         create_test_users(settings)
+        request_response = client.post("/auth/otp/request", json={"email": "admin@acme.in"})
+        assert request_response.status_code == 202
         token_response = client.post(
-            "/auth/login",
-            data={"username": "admin@acme.in", "password": "demo-password"},
+            "/auth/otp/verify", json={"email": "admin@acme.in", "code": delivery.codes["admin@acme.in"]}
         )
         assert token_response.status_code == 200
         token = token_response.json()["access_token"]
@@ -62,30 +69,20 @@ def test_transport_admin_receives_single_company_scope() -> None:
         assert identity_response.json()["company_id"] == 1
 
 
-def test_internal_manager_receives_all_company_scope() -> None:
-    client, settings = make_client()
+def test_unknown_email_receives_generic_response_without_an_otp() -> None:
+    client, settings, delivery = make_client()
     with client:
         create_test_users(settings)
-        token_response = client.post(
-            "/auth/login",
-            data={"username": "ops@moveinsync.ai", "password": "demo-password"},
-        )
-        token = token_response.json()["access_token"]
-        identity_response = client.get("/auth/me", headers={"Authorization": "Bearer " + token})
-
-        assert identity_response.status_code == 200
-        assert identity_response.json()["user_type"] == "internal_ops_manager"
-        assert identity_response.json()["access_scope"] == "all_companies"
-        assert identity_response.json()["company_id"] is None
+        response = client.post("/auth/otp/request", json={"email": "unknown@acme.in"})
+        assert response.status_code == 202
+        assert delivery.codes == {}
 
 
-def test_invalid_password_does_not_issue_token() -> None:
-    client, settings = make_client()
+def test_otp_is_single_use() -> None:
+    client, settings, delivery = make_client()
     with client:
         create_test_users(settings)
-        response = client.post(
-            "/auth/login",
-            data={"username": "admin@acme.in", "password": "incorrect"},
-        )
-        assert response.status_code == 401
-        assert "access_token" not in response.json()
+        client.post("/auth/otp/request", json={"email": "admin@acme.in"})
+        verification = {"email": "admin@acme.in", "code": delivery.codes["admin@acme.in"]}
+        assert client.post("/auth/otp/verify", json=verification).status_code == 200
+        assert client.post("/auth/otp/verify", json=verification).status_code == 401

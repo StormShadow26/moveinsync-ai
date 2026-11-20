@@ -12,6 +12,18 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class OtpRequest(BaseModel):
+    email: EmailStr
+
+
+class OtpVerification(OtpRequest):
+    code: str
+
+
+class OtpRequestResponse(BaseModel):
+    message: str = "If the email is registered, a verification code has been sent."
+
+
 class CurrentUser(BaseModel):
     user_id: int
     email: EmailStr

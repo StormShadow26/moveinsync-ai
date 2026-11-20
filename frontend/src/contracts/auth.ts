@@ -9,5 +9,6 @@ export interface UserScope {
 }
 
 export interface AuthGateway {
-  login(email: string, password: string): Promise<UserScope>
+  requestOtp(email: string): Promise<void>
+  verifyOtp(email: string, code: string): Promise<UserScope>
 }
