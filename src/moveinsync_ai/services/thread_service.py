@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from ..database.models import QueryMessage, QueryThread, QueryThreadScope, UserType
+from ..database.models import QueryMessage, QueryMessageRole, QueryThread, QueryThreadScope, UserType
 from ..database.repositories.contracts import QueryThreadRepository
 from ..database.rls import TenantScopeSetter
 from .contracts import ThreadActor, ThreadService
@@ -33,7 +33,20 @@ class ScopedThreadService:
         thread = self._thread(actor, thread_id)
         if thread is None:
             return None
-        message = self._repository.create_message(thread, content)
+        message = self._repository.create_message(thread, QueryMessageRole.USER, content)
+        self._session.commit()
+        return message
+
+    def get_thread(self, actor: ThreadActor, thread_id: int) -> QueryThread | None:
+        return self._thread(actor, thread_id)
+
+    def add_assistant_message(
+        self, actor: ThreadActor, thread_id: int, content: str, generated_sql: str, result_summary: str
+    ) -> QueryMessage | None:
+        thread = self._thread(actor, thread_id)
+        if thread is None:
+            return None
+        message = self._repository.create_message(thread, QueryMessageRole.ASSISTANT, content, generated_sql, result_summary)
         self._session.commit()
         return message
 

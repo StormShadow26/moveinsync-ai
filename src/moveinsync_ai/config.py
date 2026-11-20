@@ -19,6 +19,10 @@ class Settings:
     smtp_username: str | None = None
     smtp_password: str | None = None
     smtp_sender_email: str = "noreply@moveinsync.ai"
+    groq_api_key: str | None = None
+    groq_model: str = "qwen/qwen3.8-27b"
+    query_row_limit: int = 100
+    query_timeout_seconds: int = 10
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -38,6 +42,10 @@ class Settings:
             smtp_username=os.getenv("SMTP_USERNAME"),
             smtp_password=os.getenv("SMTP_PASSWORD"),
             smtp_sender_email=os.getenv("SMTP_SENDER_EMAIL", "noreply@moveinsync.ai"),
+            groq_api_key=os.getenv("GROQ_API_KEY"),
+            groq_model=os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b"),
+            query_row_limit=int(os.getenv("QUERY_ROW_LIMIT", "100")),
+            query_timeout_seconds=int(os.getenv("QUERY_TIMEOUT_SECONDS", "10")),
         )
 
 

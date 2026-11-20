@@ -23,8 +23,23 @@ class SqlAlchemyQueryThreadRepository:
     def get_thread(self, thread_id: int, user_id: int) -> QueryThread | None:
         return self._session.scalar(select(QueryThread).where(QueryThread.id == thread_id, QueryThread.user_id == user_id))
 
-    def create_message(self, thread: QueryThread, content: str) -> QueryMessage:
-        message = QueryMessage(thread_id=thread.id, user_id=thread.user_id, company_id=thread.company_id, role=QueryMessageRole.USER, content=content)
+    def create_message(
+        self,
+        thread: QueryThread,
+        role: QueryMessageRole,
+        content: str,
+        generated_sql: str | None = None,
+        result_summary: str | None = None,
+    ) -> QueryMessage:
+        message = QueryMessage(
+            thread_id=thread.id,
+            user_id=thread.user_id,
+            company_id=thread.company_id,
+            role=role,
+            content=content,
+            generated_sql=generated_sql,
+            result_summary=result_summary,
+        )
         self._session.add(message)
         self._session.flush()
         return message

@@ -1,5 +1,6 @@
 import type { ChatGateway, ChatMessage, ChatThread, Company, ThreadScope } from '../contracts/chat'
 import type { UserScope } from '../contracts/auth'
+import { readResponse } from './http'
 
 export class HttpChatGateway implements ChatGateway {
   currentUser(): UserScope | null {
@@ -13,15 +14,13 @@ export class HttpChatGateway implements ChatGateway {
     return this.request('/query/threads', { method: 'POST', body: JSON.stringify({ scope, company_id: companyId, title }) })
   }
   messages(threadId: number): Promise<ChatMessage[]> { return this.request(`/query/threads/${threadId}/messages`) }
-  addMessage(threadId: number, content: string): Promise<ChatMessage> {
-    return this.request(`/query/threads/${threadId}/messages`, { method: 'POST', body: JSON.stringify({ content }) })
+  ask(threadId: number, content: string): Promise<ChatMessage> {
+    return this.request(`/query/threads/${threadId}/ask`, { method: 'POST', body: JSON.stringify({ content }) })
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const token = sessionStorage.getItem('moveinsync_access_token')
     const response = await fetch(path, { ...options, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers } })
-    const payload = await response.json()
-    if (!response.ok) throw new Error(payload.detail ?? 'Something went wrong.')
-    return payload as T
+    return readResponse<T>(response)
   }
 }

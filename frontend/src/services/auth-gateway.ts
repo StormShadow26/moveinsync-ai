@@ -1,4 +1,5 @@
 import type { AuthGateway, UserScope } from '../contracts/auth'
+import { readResponse } from './http'
 
 interface TokenResponse { access_token: string }
 
@@ -17,8 +18,6 @@ export class HttpAuthGateway implements AuthGateway {
 
   private async request<T = void>(path: string, options: RequestInit): Promise<T> {
     const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } })
-    const payload = await response.json()
-    if (!response.ok) throw new Error(payload.detail ?? 'Something went wrong.')
-    return payload as T
+    return readResponse<T>(response)
   }
 }

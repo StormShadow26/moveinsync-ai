@@ -11,6 +11,6 @@ export interface ChatGateway {
   threads(): Promise<ChatThread[]>
   createThread(scope: ThreadScope, companyId: number | null, title?: string): Promise<ChatThread>
   messages(threadId: number): Promise<ChatMessage[]>
-  addMessage(threadId: number, content: string): Promise<ChatMessage>
+  ask(threadId: number, content: string): Promise<ChatMessage>
   currentUser(): UserScope | null
 }
