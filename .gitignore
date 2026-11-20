@@ -9,3 +9,10 @@ wheels/
 # Virtual environments
 .venv
 .env
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/tailwind.config.d.ts
+frontend/tailwind.config.js
+frontend/vite.config.d.ts
+frontend/vite.config.js

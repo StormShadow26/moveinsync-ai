@@ -8,7 +8,7 @@ from .contracts import LandingPage
 
 
 class StaticLandingPage:
-    """Serve the versioned static landing page assets."""
+    """Serve the compiled React landing page assets."""
 
     def __init__(self, static_directory: Path):
         self._static_directory = static_directory
@@ -21,4 +21,4 @@ class StaticLandingPage:
         return FileResponse(self._static_directory / "index.html")
 
 
-landing_page: LandingPage = StaticLandingPage(Path(__file__).parent / "static")
+landing_page: LandingPage = StaticLandingPage(Path(__file__).parent / "dist")

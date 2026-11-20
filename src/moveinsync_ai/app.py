@@ -28,7 +28,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.settings = resolved_settings
-    application.mount("/static", StaticFiles(directory=landing_page.static_directory), name="static")
+    application.mount("/assets", StaticFiles(directory=landing_page.static_directory / "assets", check_dir=False), name="assets")
     application.include_router(auth_router)
 
     @application.get("/", include_in_schema=False)
