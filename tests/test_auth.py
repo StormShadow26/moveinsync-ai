@@ -29,13 +29,13 @@ def create_test_users(settings: Settings) -> None:
         session.add_all(
             [
                 User(
-                    email="admin@acme.example",
+                    email="admin@acme.in",
                     password_hash=password_hasher.hash("demo-password"),
                     user_type=UserType.CLIENT_TRANSPORT_ADMIN,
                     company_id=acme.id,
                 ),
                 User(
-                    email="ops@moveinsync.example",
+                    email="ops@moveinsync.ai",
                     password_hash=password_hasher.hash("demo-password"),
                     user_type=UserType.INTERNAL_OPS_MANAGER,
                 ),
@@ -50,7 +50,7 @@ def test_transport_admin_receives_single_company_scope() -> None:
         create_test_users(settings)
         token_response = client.post(
             "/auth/login",
-            data={"username": "admin@acme.example", "password": "demo-password"},
+            data={"username": "admin@acme.in", "password": "demo-password"},
         )
         assert token_response.status_code == 200
         token = token_response.json()["access_token"]
@@ -68,7 +68,7 @@ def test_internal_manager_receives_all_company_scope() -> None:
         create_test_users(settings)
         token_response = client.post(
             "/auth/login",
-            data={"username": "ops@moveinsync.example", "password": "demo-password"},
+            data={"username": "ops@moveinsync.ai", "password": "demo-password"},
         )
         token = token_response.json()["access_token"]
         identity_response = client.get("/auth/me", headers={"Authorization": "Bearer " + token})
@@ -85,7 +85,7 @@ def test_invalid_password_does_not_issue_token() -> None:
         create_test_users(settings)
         response = client.post(
             "/auth/login",
-            data={"username": "admin@acme.example", "password": "incorrect"},
+            data={"username": "admin@acme.in", "password": "incorrect"},
         )
         assert response.status_code == 401
         assert "access_token" not in response.json()

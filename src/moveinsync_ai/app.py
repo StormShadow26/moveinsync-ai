@@ -4,10 +4,12 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from .api.routers.auth import router as auth_router
 from .config import Settings, get_settings
 from .database.session import create_schema
+from .frontend.landing import landing_page
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:
@@ -26,12 +28,13 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.settings = resolved_settings
+    application.mount("/static", StaticFiles(directory=landing_page.static_directory), name="static")
     application.include_router(auth_router)
 
-    @application.get("/")
+    @application.get("/", include_in_schema=False)
     def read_root():
-        """Return a simple status message."""
-        return {"message": "MoveInSync AI API is running"}
+        """Serve the public product landing page."""
+        return landing_page.response()
 
     @application.get("/health")
     def health_check():
