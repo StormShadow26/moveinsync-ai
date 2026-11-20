@@ -5,9 +5,10 @@ import type { AuthGateway, UserScope } from '../contracts/auth'
 interface LoginDialogProps {
   gateway: AuthGateway
   onClose: () => void
+  onAuthenticated: (user: UserScope) => void
 }
 
-export function LoginDialog({ gateway, onClose }: LoginDialogProps) {
+export function LoginDialog({ gateway, onClose, onAuthenticated }: LoginDialogProps) {
   const [scope, setScope] = useState<UserScope>()
   const [email, setEmail] = useState('')
   const [otpSent, setOtpSent] = useState(false)
@@ -26,7 +27,9 @@ export function LoginDialog({ gateway, onClose }: LoginDialogProps) {
         setOtpSent(true)
         return
       }
-      setScope(await gateway.verifyOtp(email, String(form.get('code'))))
+      const user = await gateway.verifyOtp(email, String(form.get('code')))
+      setScope(user)
+      onAuthenticated(user)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Sign in failed.')
     }

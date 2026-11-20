@@ -10,7 +10,9 @@ export class HttpAuthGateway implements AuthGateway {
   async verifyOtp(email: string, code: string): Promise<UserScope> {
     const token = await this.request<TokenResponse>('/auth/otp/verify', { method: 'POST', body: JSON.stringify({ email, code }) })
     sessionStorage.setItem('moveinsync_access_token', token.access_token)
-    return this.request<UserScope>('/auth/me', { headers: { Authorization: `Bearer ${token.access_token}` } })
+    const user = await this.request<UserScope>('/auth/me', { headers: { Authorization: `Bearer ${token.access_token}` } })
+    sessionStorage.setItem('moveinsync_user', JSON.stringify(user))
+    return user
   }
 
   private async request<T = void>(path: string, options: RequestInit): Promise<T> {

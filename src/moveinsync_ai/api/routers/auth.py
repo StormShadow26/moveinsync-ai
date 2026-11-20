@@ -67,7 +67,7 @@ def request_otp(
     request: OtpRequest,
     authentication: AuthenticationServiceDependency,
 ) -> OtpRequestResponse:
-    """Send a verification code only to a provisioned client travel admin."""
+    """Send a verification code only to a provisioned application user."""
     try:
         authentication.request_otp(request.email)
     except OSError as error:
@@ -89,7 +89,8 @@ def verify_otp(
             detail="Invalid or expired verification code",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if user.company_id is None:
+    is_internal_manager = user.user_type == UserType.INTERNAL_OPS_MANAGER
+    if (is_internal_manager and user.company_id is not None) or (not is_internal_manager and user.company_id is None):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has an invalid company scope")
     return TokenResponse(
         access_token=codec.issue(

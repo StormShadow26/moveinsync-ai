@@ -78,6 +78,20 @@ def test_unknown_email_receives_generic_response_without_an_otp() -> None:
         assert delivery.codes == {}
 
 
+def test_internal_ops_manager_receives_all_companies_scope() -> None:
+    client, settings, delivery = make_client()
+    with client:
+        create_test_users(settings)
+        assert client.post("/auth/otp/request", json={"email": "ops@moveinsync.ai"}).status_code == 202
+        token = client.post(
+            "/auth/otp/verify", json={"email": "ops@moveinsync.ai", "code": delivery.codes["ops@moveinsync.ai"]}
+        ).json()["access_token"]
+        identity = client.get("/auth/me", headers={"Authorization": "Bearer " + token}).json()
+        assert identity["user_type"] == "internal_ops_manager"
+        assert identity["access_scope"] == "all_companies"
+        assert identity["company_id"] is None
+
+
 def test_otp_is_single_use() -> None:
     client, settings, delivery = make_client()
     with client:
@@ -86,3 +100,50 @@ def test_otp_is_single_use() -> None:
         verification = {"email": "admin@acme.in", "code": delivery.codes["admin@acme.in"]}
         assert client.post("/auth/otp/verify", json=verification).status_code == 200
         assert client.post("/auth/otp/verify", json=verification).status_code == 401
+
+
+def test_travel_admin_can_create_a_company_thread_and_messages() -> None:
+    client, settings, delivery = make_client()
+    with client:
+        create_test_users(settings)
+        client.post("/auth/otp/request", json={"email": "admin@acme.in"})
+        token = client.post(
+            "/auth/otp/verify", json={"email": "admin@acme.in", "code": delivery.codes["admin@acme.in"]}
+        ).json()["access_token"]
+        headers = {"Authorization": "Bearer " + token}
+
+        thread = client.post("/query/threads", json={"scope": "company", "company_id": 1, "title": "Route review"}, headers=headers)
+        assert thread.status_code == 201
+        thread_id = thread.json()["id"]
+        message = client.post(
+            f"/query/threads/{thread_id}/messages", json={"content": "Which route had the most no-shows?"}, headers=headers
+        )
+        assert message.status_code == 201
+        assert client.get("/query/threads", headers=headers).json()[0]["title"] == "Route review"
+
+
+def test_travel_admin_cannot_create_an_all_companies_thread() -> None:
+    client, settings, delivery = make_client()
+    with client:
+        create_test_users(settings)
+        client.post("/auth/otp/request", json={"email": "admin@acme.in"})
+        token = client.post(
+            "/auth/otp/verify", json={"email": "admin@acme.in", "code": delivery.codes["admin@acme.in"]}
+        ).json()["access_token"]
+        response = client.post("/query/threads", json={"scope": "all_companies"}, headers={"Authorization": "Bearer " + token})
+        assert response.status_code == 403
+
+
+def test_internal_manager_can_use_otp_and_choose_all_companies() -> None:
+    client, settings, delivery = make_client()
+    with client:
+        create_test_users(settings)
+        client.post("/auth/otp/request", json={"email": "ops@moveinsync.ai"})
+        token = client.post(
+            "/auth/otp/verify", json={"email": "ops@moveinsync.ai", "code": delivery.codes["ops@moveinsync.ai"]}
+        ).json()["access_token"]
+        headers = {"Authorization": "Bearer " + token}
+        response = client.post("/query/threads", json={"scope": "all_companies", "title": "Portfolio review"}, headers=headers)
+        assert response.status_code == 201
+        assert response.json()["company_id"] is None
+        assert client.get("/query/companies", headers=headers).status_code == 200

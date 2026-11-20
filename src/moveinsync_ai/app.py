@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .api.routers.auth import router as auth_router
+from .api.routers.companies import router as company_router
+from .api.routers.threads import router as thread_router
 from .config import Settings, get_settings
 from .database.session import create_schema
 from .frontend.landing import landing_page
@@ -30,6 +32,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     application.state.settings = resolved_settings
     application.mount("/assets", StaticFiles(directory=landing_page.static_directory / "assets", check_dir=False), name="assets")
     application.include_router(auth_router)
+    application.include_router(company_router)
+    application.include_router(thread_router)
 
     @application.get("/", include_in_schema=False)
     def read_root():

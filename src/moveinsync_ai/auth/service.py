@@ -12,7 +12,7 @@ from .contracts import OtpDelivery, OtpGenerator, OtpHasher
 
 
 class SqlAlchemyAuthenticationService:
-    """Issue and verify OTPs only for provisioned client travel admins."""
+    """Issue and verify OTPs for provisioned client and internal users."""
 
     def __init__(
         self,
@@ -30,7 +30,7 @@ class SqlAlchemyAuthenticationService:
 
     def request_otp(self, email: str) -> bool:
         user = self._session.scalar(select(User).where(User.email == email.lower()))
-        if user is None or user.user_type != UserType.CLIENT_TRANSPORT_ADMIN:
+        if user is None:
             return False
         code = self._generator.generate()
         self._session.execute(delete(LoginOtp).where(LoginOtp.user_id == user.id, LoginOtp.used_at.is_(None)))
@@ -47,7 +47,7 @@ class SqlAlchemyAuthenticationService:
 
     def verify_otp(self, email: str, code: str) -> Optional[User]:
         user = self._session.scalar(select(User).where(User.email == email.lower()))
-        if user is None or user.user_type != UserType.CLIENT_TRANSPORT_ADMIN:
+        if user is None:
             return None
         otp = self._session.scalar(
             select(LoginOtp)

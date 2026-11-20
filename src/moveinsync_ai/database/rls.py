@@ -62,6 +62,8 @@ class PostgresTenantScopeSetter:
     """Set PostgreSQL RLS variables for a single request transaction."""
 
     def apply(self, session: Session, user_id: int, company_id: int | None, access_scope: str) -> None:
+        if session.get_bind().dialect.name != "postgresql":
+            return
         session.execute(text("SELECT set_config('app.access_scope', :scope, true)"), {"scope": access_scope})
         session.execute(text("SELECT set_config('app.user_id', :user_id, true)"), {"user_id": str(user_id)})
         session.execute(
